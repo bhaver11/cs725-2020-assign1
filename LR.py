@@ -1,8 +1,8 @@
-from sklearn import preprocessing
 import pandas as pd
 import numpy as np
 import matplotlib
-matplotlib.use("Agg")
+from sklearn import preprocessing
+# matplotlib.use("Agg")
 from matplotlib import pyplot as plt
 
 np.random.seed(42)
@@ -39,8 +39,24 @@ def get_features(csv_path,is_train=False,scaler=None):
         * https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.read_csv.html
         * https://www.geeksforgeeks.org/python-read-csv-using-pandas-read_csv/
     '''
-
-    raise NotImplementedError
+    #from -> https://stackoverflow.com/questions/20517650/how-to-delete-the-last-column-of-data-of-a-pandas-dataframe
+    data_frame = pd.read_csv(csv_path, nrows=1) # read just first line for columns
+    columns = data_frame.columns.tolist() # get the columns
+    cols_to_use = columns[:len(columns)-1] # drop the last one
+    df = pd.read_csv(csv_path, usecols=cols_to_use)
+    # minV = df.min()
+    # maxV = df.max()
+    x = df.values #returns a numpy array
+    min_max_scaler = preprocessing.MinMaxScaler()
+    x_scaled = min_max_scaler.fit_transform(x)
+    df =    pd.DataFrame(x_scaled)
+    # df_np = df
+    # df_np_norm = (df_np - df_np.min(0))/df_np.ptp(0)
+    # print(df_np_norm)
+    # plt.plot(df)
+    # plt.show()
+    return df
+    # raise NotImplementedError
 
 def get_targets(csv_path):
     '''
@@ -49,7 +65,12 @@ def get_targets(csv_path):
     return a numpy array of shape m x 1
     m is number of examples
     '''
-    raise NotImplementedError
+    data_frame = pd.read_csv(csv_path, nrows=1) # read just first line for columns
+    columns = data_frame.columns.tolist() # get the columns
+    cols_to_use = columns[len(columns)-1:]
+    df = pd.read_csv(csv_path, usecols=cols_to_use)
+    return df.to_numpy()
+    # raise NotImplementedError
      
 
 def analytical_solution(feature_matrix, targets, C=0.0):
@@ -65,8 +86,19 @@ def analytical_solution(feature_matrix, targets, C=0.0):
     feature_matrix: numpy array of shape m x n
     weights: numpy array of shape m x 1
     '''
+    x = feature_matrix
+    y = targets
+    xt = x.T
 
-    raise NotImplementedError 
+    w = np.linalg.inv(xt.dot(x)).dot(xt).dot(y)
+
+    plt.plot(w)
+    plt.show()
+    # print(x.shape)
+    # print(xt.shape)
+    # print(w.shape)
+    return w
+    # raise NotImplementedError 
 
 def get_predictions(feature_matrix, weights):
     '''
@@ -80,10 +112,10 @@ def get_predictions(feature_matrix, weights):
     feature_matrix: numpy array of shape m x n
     weights: numpy array of shape n x 1
     '''
+    return feature_matrix.dot(weights)
+    # raise NotImplementedError
 
-    raise NotImplementedError
-
-def mse_loss(feature_matrix, weights, targets):
+def mse_loss(predications, targets):
     '''
     Description:
     Implement mean squared error loss function
@@ -96,7 +128,12 @@ def mse_loss(feature_matrix, weights, targets):
     weights: numpy array of shape n x 1
     targets: numpy array of shape m x 1
     '''
-    raise NotImplementedError
+    # pred = feature_matrix.dot(weights)
+    plt.plot(targets)
+    plt.show()
+    mse = (np.square(predications-targets).mean(axis=None))
+    return mse
+    # raise NotImplementedError
 
 def l2_regularizer(weights):
     '''
@@ -242,18 +279,19 @@ def do_gradient_descent(train_feature_matrix,
 def do_evaluation(feature_matrix, targets, weights):
     # your predictions will be evaluated based on mean squared error 
     predictions = get_predictions(feature_matrix, weights)
-    loss =  mse_loss(feature_matrix, weights, targets)
+    loss =  mse_loss(predictions, targets)
     return loss
 
 if __name__ == '__main__':
-    scaler = Scaler() #use of scaler is optional
-    train_features, train_targets = get_features('data/train.csv',True,scaler), get_targets('data/train.csv')
-    dev_features, dev_targets = get_features('data/dev.csv',False,scaler), get_targets('data/dev.csv')
+    # scaler = Scaler() #use of scaler is optional
+    train_features, train_targets = get_features('data/train.csv',True), get_targets('data/train.csv')
+    # dev_features, dev_targets = get_features('data/dev.csv',False), get_targets('data/dev.csv')
 
     a_solution = analytical_solution(train_features, train_targets, C=1e-8)
     print('evaluating analytical_solution...')
-    dev_loss=do_evaluation(dev_features, dev_targets, a_solution)
+    # dev_loss=do_evaluation(dev_features, dev_targets, a_solution)
     train_loss=do_evaluation(train_features, train_targets, a_solution)
+    dev_loss = 0
     print('analytical_solution \t train loss: {}, dev_loss: {} '.format(train_loss, dev_loss))
 
     print('training LR using gradient descent...')
