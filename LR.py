@@ -1,8 +1,7 @@
 import pandas as pd
 import numpy as np
 import matplotlib
-from sklearn import preprocessing
-# matplotlib.use("Agg")
+matplotlib.use("Agg")
 from matplotlib import pyplot as plt
 
 np.random.seed(42)
@@ -39,25 +38,26 @@ def get_features(csv_path,is_train=False,scaler=None):
         * https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.read_csv.html
         * https://www.geeksforgeeks.org/python-read-csv-using-pandas-read_csv/
     '''
-    #from -> https://stackoverflow.com/questions/20517650/how-to-delete-the-last-column-of-data-of-a-pandas-dataframe
-    data_frame = pd.read_csv(csv_path, nrows=1) # read just first line for columns
-    columns = data_frame.columns.tolist() # get the columns
-    cols_to_use = columns[:len(columns)-1] # drop the last one
-    df = pd.read_csv(csv_path, usecols=cols_to_use)
-    # minV = df.min()
-    # maxV = df.max()
-    x = df.values #returns a numpy array
-    min_max_scaler = preprocessing.MinMaxScaler()
-    x_scaled = min_max_scaler.fit_transform(x)
-    df =    pd.DataFrame(x_scaled)
-    # df_np = df
-    # df_np_norm = (df_np - df_np.min(0))/df_np.ptp(0)
-    # print(df_np_norm)
-    # plt.plot(df)
-    # plt.show()
-    return df
-    # raise NotImplementedError
 
+    print("get features " + str(is_train))
+    #from -> https://stackoverflow.com/questions/20517650/how-to-delete-the-last-column-of-data-of-a-pandas-dataframe
+    
+    if is_train:
+        data_frame = pd.read_csv(csv_path, nrows=1) # read just first line for columns
+        columns = data_frame.columns.tolist() # get the columns
+        cols_to_use = columns[:len(columns)-1] # drop the last one
+        data_frame = pd.read_csv(csv_path, usecols=cols_to_use)
+    else:
+        data_frame = pd.read_csv(csv_path) 
+
+    x = data_frame.values #returns a numpy array
+
+    
+    x_norm = ((x-x.min(axis=0))/(x.max(axis=0) - x.min(axis=0)+ 0.000000000000000001)) #normalize
+    
+    print(x_norm)
+    # np.savetxt('x_norm.csv', x_norm, delimiter=',', header=columns)    
+    return x_norm
 def get_targets(csv_path):
     '''
     Description:
@@ -69,7 +69,10 @@ def get_targets(csv_path):
     columns = data_frame.columns.tolist() # get the columns
     cols_to_use = columns[len(columns)-1:]
     df = pd.read_csv(csv_path, usecols=cols_to_use)
-    return df.to_numpy()
+    print(df.info())
+    x = df.values #returns a numpy array
+    # x_norm = x / x.sum(axis = 0)
+    return x
     # raise NotImplementedError
      
 
@@ -90,10 +93,10 @@ def analytical_solution(feature_matrix, targets, C=0.0):
     y = targets
     xt = x.T
 
-    w = np.linalg.inv(xt.dot(x)).dot(xt).dot(y)
-
-    plt.plot(w)
-    plt.show()
+    w = np.linalg.inv(xt.dot(x)+C).dot(xt).dot(y)
+    # w = np.linalg.lstsq(x,y)
+   # plt.plot(w)
+   # plt.show()
     # print(x.shape)
     # print(xt.shape)
     # print(w.shape)
@@ -129,8 +132,8 @@ def mse_loss(predications, targets):
     targets: numpy array of shape m x 1
     '''
     # pred = feature_matrix.dot(weights)
-    plt.plot(targets)
-    plt.show()
+    #plt.plot(targets)
+    #plt.show()
     mse = (np.square(predications-targets).mean(axis=None))
     return mse
     # raise NotImplementedError
@@ -247,7 +250,7 @@ def do_gradient_descent(train_feature_matrix,
     ** However **, you ought to make use of compute_gradients and update_weights function defined above
     return your best possible estimate of LR weights
 
-    a sample code is as follows -- 
+    a sample code is as follows --          
     '''
     weights = initialize_weights(n)
     dev_loss = mse_loss(dev_feature_matrix, weights, dev_targets)
@@ -278,20 +281,36 @@ def do_gradient_descent(train_feature_matrix,
 
 def do_evaluation(feature_matrix, targets, weights):
     # your predictions will be evaluated based on mean squared error 
-    predictions = get_predictions(feature_matrix, weights)
+    # predictions = get_predictions(feature_matrix, weights)
+    predictions = feature_matrix.dot(weights)
+    # pred_idx = np.insert(predictions, 0, range(0,predictions.size), axis=1)
+
+    # df = pd.DataFrame(predictions)
+    # np.savetxt('pred.csv', pred_idx, delimiter=',', header='instance_id,shares',fmt='%d,%f',comments="")
+    # np.savetxt("pred.csv", np.dstack((range(1, predictions.size+1),predictions))[0],"%d,%f",header="instance_id,shares")
+    # df.to_csv('test_csv.csv', mode='a', index=True)
     loss =  mse_loss(predictions, targets)
     return loss
 
 if __name__ == '__main__':
     # scaler = Scaler() #use of scaler is optional
     train_features, train_targets = get_features('data/train.csv',True), get_targets('data/train.csv')
-    # dev_features, dev_targets = get_features('data/dev.csv',False), get_targets('data/dev.csv')
+    dev_features, dev_targets = get_features('data/dev.csv',True), get_targets('data/dev.csv')
+    
+    a_solution = analytical_solution(train_features, train_targets, C=1e-7)
+    test_features = get_features('data/test.csv',False)
+    # print
+    predictions = get_predictions(test_features,a_solution)
+    pred_idx = np.insert(predictions, 0, range(0,predictions.size), axis=1)
 
-    a_solution = analytical_solution(train_features, train_targets, C=1e-8)
+    df = pd.DataFrame(predictions)
+    np.savetxt('pred.csv', pred_idx, delimiter=',', header='instance_id,shares',fmt='%d,%f',comments="")
+    # print(pred_test)
+    np.savetxt("soln.csv",a_solution,"%f",delimiter=',')
     print('evaluating analytical_solution...')
-    # dev_loss=do_evaluation(dev_features, dev_targets, a_solution)
+#    dev_loss = 0
+    dev_loss=do_evaluation(dev_features, dev_targets, a_solution)
     train_loss=do_evaluation(train_features, train_targets, a_solution)
-    dev_loss = 0
     print('analytical_solution \t train loss: {}, dev_loss: {} '.format(train_loss, dev_loss))
 
     print('training LR using gradient descent...')
