@@ -320,7 +320,6 @@ if __name__ == '__main__':
     predictions = get_predictions(test_features,a_solution)
     pred_idx = np.insert(predictions, 0, range(0,predictions.size), axis=1)
 
-    df = pd.DataFrame(predictions)
     np.savetxt('pred.csv', pred_idx, delimiter=',', header='instance_id,shares',fmt='%d,%f',comments="")
     # print(pred_test)
     np.savetxt("soln.csv",a_solution,"%f",delimiter=',')
