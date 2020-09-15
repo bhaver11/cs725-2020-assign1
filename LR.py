@@ -42,7 +42,7 @@ def get_features(csv_path,is_train=False,scaler=None,is_test=False):
         * https://www.geeksforgeeks.org/python-read-csv-using-pandas-read_csv/
     '''
 
-    print("get features " + str(is_train))
+    # print("get features " + str(is_train))
     #from -> https://stackoverflow.com/questions/20517650/how-to-delete-the-last-column-of-data-of-a-pandas-dataframe
     
     
@@ -57,13 +57,7 @@ def get_features(csv_path,is_train=False,scaler=None,is_test=False):
     if is_train:
         scaler.__call__(x,is_train)
 
-    
-
-    
     x_norm = ((x- scaler.minimum)/(scaler.maximum - scaler.minimum + 0.00000000000000000001)) #normalize
-    
-    print(x_norm)
-    # np.savetxt('x_norm.csv', x_norm, delimiter=',', header=columns)    
     return x_norm
 def get_targets(csv_path):
     '''
@@ -72,15 +66,15 @@ def get_targets(csv_path):
     return a numpy array of shape m x 1
     m is number of examples
     '''
+    #from -> https://stackoverflow.com/questions/20517650/how-to-delete-the-last-column-of-data-of-a-pandas-dataframe
     data_frame = pd.read_csv(csv_path, nrows=1) # read just first line for columns
     columns = data_frame.columns.tolist() # get the columns
     cols_to_use = columns[len(columns)-1:]
     df = pd.read_csv(csv_path, usecols=cols_to_use)
-    print(df.info())
+    # print(df.info())
     x = df.values #returns a numpy array
-    # x_norm = x / x.sum(axis = 0)
     return x
-    # raise NotImplementedError
+
      
 
 def analytical_solution(feature_matrix, targets, C=0.0):
@@ -96,24 +90,11 @@ def analytical_solution(feature_matrix, targets, C=0.0):
     feature_matrix: numpy array of shape m x n
     weights: numpy array of shape m x 1
     '''
-    Xt = np.transpose(feature_matrix)
-    XtX = np.dot(Xt,feature_matrix)
-    Xty = np.dot(Xt,targets)
-    w = np.linalg.solve(XtX + C ,Xty)
-    # x = feature_matrix
-    # y = targets
-    # xt = x.T
-    # C = np.linalg.norm(y,axis=-0)
-    
-    # w = np.linalg.inv(xt.dot(x)+C).dot(xt).dot(y)
-    # w = np.linalg.lstsq(x,y)
-   # plt.plot(w)
-   # plt.show()
-    # print(x.shape)
-    # print(xt.shape)
-    # print(w.shape)
+    x = feature_matrix
+    y = targets
+    xt = x.T
+    w = np.linalg.solve(xt.dot(x) + C ,xt.dot(y))
     return w
-    # raise NotImplementedError 
 
 def get_predictions(feature_matrix, weights):
     '''
@@ -143,12 +124,8 @@ def mse_loss(predications, targets):
     weights: numpy array of shape n x 1
     targets: numpy array of shape m x 1
     '''
-    # pred = feature_matrix.dot(weights)
-    #plt.plot(targets)
-    #plt.show()
     mse = (np.square(predications-targets).mean(axis=None))
     return mse
-    # raise NotImplementedError
 
 def l2_regularizer(weights):
     '''
@@ -315,14 +292,14 @@ if __name__ == '__main__':
     a_solution = analytical_solution(train_features, train_targets, C=1e-8)
     
     
-    test_features = get_features('data/test.csv',False,scaler,True)
+    # test_features = get_features('data/test.csv',False,scaler,True)
     # print
-    predictions = get_predictions(test_features,a_solution)
-    pred_idx = np.insert(predictions, 0, range(0,predictions.size), axis=1)
+    # predictions = get_predictions(test_features,a_solution)
+    # pred_idx = np.insert(predictions, 0, range(0,predictions.size), axis=1)
 
-    np.savetxt('pred.csv', pred_idx, delimiter=',', header='instance_id,shares',fmt='%d,%f',comments="")
+    # np.savetxt('pred.csv', pred_idx, delimiter=',', header='instance_id,shares',fmt='%d,%f',comments="")
     # print(pred_test)
-    np.savetxt("soln.csv",a_solution,"%f",delimiter=',')
+    # np.savetxt("soln.csv",a_solution,"%f",delimiter=',')
     print('evaluating analytical_solution...')
 #    dev_loss = 0
     dev_loss=do_evaluation(dev_features, dev_targets, a_solution)
