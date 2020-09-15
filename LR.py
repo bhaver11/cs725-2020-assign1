@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 import matplotlib
-matplotlib.use("Agg")
+# matplotlib.use("Agg")
 from matplotlib import pyplot as plt
 
 np.random.seed(42)
@@ -10,12 +10,15 @@ np.random.seed(42)
 class Scaler():
     # hint: https://machinelearningmastery.com/standardscaler-and-minmaxscaler-transforms-in-python/
     def __init__(self):
-        raise NotImplementedError
+        self.minimum = []
+        self.maximum = []
     def __call__(self,features, is_train=False):
-        raise NotImplementedError
+        self.minimum = features.min(axis=0)
+        self.maximum = features.max(axis=0)
+        # raise NotImplementedError
 
 
-def get_features(csv_path,is_train=False,scaler=None):
+def get_features(csv_path,is_train=False,scaler=None,is_test=False):
     '''
     Description:
     read input feature columns from csv file
@@ -42,18 +45,22 @@ def get_features(csv_path,is_train=False,scaler=None):
     print("get features " + str(is_train))
     #from -> https://stackoverflow.com/questions/20517650/how-to-delete-the-last-column-of-data-of-a-pandas-dataframe
     
-    if is_train:
+    
+    if is_test:
+        data_frame = pd.read_csv(csv_path)
+    else:
         data_frame = pd.read_csv(csv_path, nrows=1) # read just first line for columns
         columns = data_frame.columns.tolist() # get the columns
         cols_to_use = columns[:len(columns)-1] # drop the last one
         data_frame = pd.read_csv(csv_path, usecols=cols_to_use)
-    else:
-        data_frame = pd.read_csv(csv_path) 
-
     x = data_frame.values #returns a numpy array
+    if is_train:
+        scaler.__call__(x,is_train)
 
     
-    x_norm = ((x-x.min(axis=0))/(x.max(axis=0) - x.min(axis=0)+ 0.000000000000000001)) #normalize
+
+    
+    x_norm = ((x- scaler.minimum)/(scaler.maximum - scaler.minimum + 0.00000000000000000001)) #normalize
     
     print(x_norm)
     # np.savetxt('x_norm.csv', x_norm, delimiter=',', header=columns)    
@@ -89,11 +96,16 @@ def analytical_solution(feature_matrix, targets, C=0.0):
     feature_matrix: numpy array of shape m x n
     weights: numpy array of shape m x 1
     '''
-    x = feature_matrix
-    y = targets
-    xt = x.T
-
-    w = np.linalg.inv(xt.dot(x)+C).dot(xt).dot(y)
+    Xt = np.transpose(feature_matrix)
+    XtX = np.dot(Xt,feature_matrix)
+    Xty = np.dot(Xt,targets)
+    w = np.linalg.solve(XtX + C ,Xty)
+    # x = feature_matrix
+    # y = targets
+    # xt = x.T
+    # C = np.linalg.norm(y,axis=-0)
+    
+    # w = np.linalg.inv(xt.dot(x)+C).dot(xt).dot(y)
     # w = np.linalg.lstsq(x,y)
    # plt.plot(w)
    # plt.show()
@@ -289,16 +301,21 @@ def do_evaluation(feature_matrix, targets, weights):
     # np.savetxt('pred.csv', pred_idx, delimiter=',', header='instance_id,shares',fmt='%d,%f',comments="")
     # np.savetxt("pred.csv", np.dstack((range(1, predictions.size+1),predictions))[0],"%d,%f",header="instance_id,shares")
     # df.to_csv('test_csv.csv', mode='a', index=True)
+    # plt.plot(targets)
+    # plt.plot(predictions)
+    # plt.show()
     loss =  mse_loss(predictions, targets)
     return loss
 
 if __name__ == '__main__':
-    # scaler = Scaler() #use of scaler is optional
-    train_features, train_targets = get_features('data/train.csv',True), get_targets('data/train.csv')
-    dev_features, dev_targets = get_features('data/dev.csv',True), get_targets('data/dev.csv')
+    scaler = Scaler() #use of scaler is optional
+    train_features, train_targets = get_features('data/train.csv',True,scaler), get_targets('data/train.csv')
+    dev_features, dev_targets = get_features('data/dev.csv',False,scaler), get_targets('data/dev.csv')
     
-    a_solution = analytical_solution(train_features, train_targets, C=1e-7)
-    test_features = get_features('data/test.csv',False)
+    a_solution = analytical_solution(train_features, train_targets, C=1e-8)
+    
+    
+    test_features = get_features('data/test.csv',False,scaler,True)
     # print
     predictions = get_predictions(test_features,a_solution)
     pred_idx = np.insert(predictions, 0, range(0,predictions.size), axis=1)
