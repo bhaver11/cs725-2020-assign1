@@ -155,7 +155,7 @@ def loss_fn(feature_matrix, weights, targets, C=0.0):
     return value: float (scalar)
     '''
     mse = mse_loss(feature_matrix,targets)
-    return mse + np.linalg.norm(weights)
+    return mse + C*np.linalg.norm(weights)
     # raise NotImplementedError
 
 def compute_gradients(feature_matrix, weights, targets, C=0.0):
@@ -172,7 +172,18 @@ def compute_gradients(feature_matrix, weights, targets, C=0.0):
     C: weight for regularization penalty
     return value: numpy array
     '''
-    raise NotImplementedError
+    # print(feature_matrix)
+    # print(weights)
+    # print(targets)
+    loss = (feature_matrix.dot(weights)-targets)
+    # print(loss)
+
+    # cost = np.sum(loss**2)/2*32  + 
+    # print(cost)
+    #loss_fn(feature_matrix,weights,targets,C)
+    gradient = feature_matrix.T.dot(loss)
+    return gradient
+    # raise NotImplementedError
 
 def sample_random_batch(feature_matrix, targets, batch_size):
     '''
@@ -209,7 +220,7 @@ def initialize_weights(n):
     Arguments
     n: int
     '''
-    return np.zeros((n,1))
+    return np.ones((n,1))
 
 def update_weights(weights, gradients, lr):
     '''
@@ -224,8 +235,9 @@ def update_weights(weights, gradients, lr):
     # gradients: numpy matrix of shape nx1
     # lr: learning rate
     '''    
-
-    raise NotImplementedError
+    weights = weights - lr*gradients
+    return weights
+    # raise NotImplementedError
 
 def early_stopping(arg_1=None, arg_2=None, arg_3=None, arg_n=None):
     # allowed to modify argument list as per your need
@@ -267,8 +279,8 @@ def do_gradient_descent(train_feature_matrix,
         weights = update_weights(weights, gradients, lr)
 
         if step%eval_steps == 0:
-            dev_loss = mse_loss(dev_feature_matrix, weights, dev_targets)
-            train_loss = mse_loss(train_feature_matrix, weights, train_targets)
+            dev_loss = mse_loss(dev_feature_matrix.dot(weights), dev_targets)
+            train_loss = mse_loss(train_feature_matrix.dot(weights), train_targets)
             print("step {} \t dev loss: {} \t train loss: {}".format(step,dev_loss,train_loss))
 
         '''
@@ -301,14 +313,7 @@ if __name__ == '__main__':
     a_solution = analytical_solution(train_features, train_targets, C=1e-8)
     
     
-    # test_features = get_features('data/test.csv',False,scaler,True)
-    # print
-    # predictions = get_predictions(test_features,a_solution)
-    # pred_idx = np.insert(predictions, 0, range(0,predictions.size), axis=1)
-
-    # np.savetxt('pred.csv', pred_idx, delimiter=',', header='instance_id,shares',fmt='%d,%f',comments="")
-    # print(pred_test)
-    # np.savetxt("soln.csv",a_solution,"%f",delimiter=',')
+    
     print('evaluating analytical_solution...')
 #    dev_loss = 0
     dev_loss=do_evaluation(dev_features, dev_targets, a_solution)
@@ -320,13 +325,20 @@ if __name__ == '__main__':
                         train_targets, 
                         dev_features,
                         dev_targets,
-                        lr=1.0,
-                        C=0.0,
-                        batch_size=32,
-                        max_steps=2000000,
-                        eval_steps=5)
+                        lr=0.001,
+                        C=1e-7,
+                        batch_size=128,
+                        max_steps=10000000,
+                        eval_steps=100000)
 
     print('evaluating iterative_solution...')
+    test_features = get_features('data/test.csv',False,scaler,True)
+    predictions = get_predictions(test_features,gradient_descent_soln)
+    pred_idx = np.insert(predictions, 0, range(0,predictions.size), axis=1)
+
+    np.savetxt('pred.csv', pred_idx, delimiter=',', header='instance_id,shares',fmt='%d,%f',comments="")
+    # print(pred_test)
+    np.savetxt("soln.csv",a_solution,"%f",delimiter=',')
     dev_loss=do_evaluation(dev_features, dev_targets, gradient_descent_soln)
     train_loss=do_evaluation(train_features, train_targets, gradient_descent_soln)
     print('gradient_descent_soln \t train loss: {}, dev_loss: {} '.format(train_loss, dev_loss))
