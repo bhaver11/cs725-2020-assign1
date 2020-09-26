@@ -7,14 +7,15 @@ from matplotlib import pyplot as plt
 np.random.seed(42)
 
 
+analytical_train_loss = 0
 class Scaler():
     # hint: https://machinelearningmastery.com/standardscaler-and-minmaxscaler-transforms-in-python/
     def __init__(self):
-        self.minimum = []
-        self.maximum = []
+        self.mean = []
+        self.std_dev = []
     def __call__(self,features, is_train=False):
-        self.minimum = features.min(axis=0)
-        self.maximum = features.max(axis=0)
+        self.mean = np.mean(features,axis=0)
+        self.std_dev = np.std(features,axis=0)
         # raise NotImplementedError
 
 
@@ -42,9 +43,7 @@ def get_features(csv_path,is_train=False,scaler=None,is_test=False):
         * https://www.geeksforgeeks.org/python-read-csv-using-pandas-read_csv/
     '''
 
-    # print("get features " + str(is_train))
     #from -> https://stackoverflow.com/questions/20517650/how-to-delete-the-last-column-of-data-of-a-pandas-dataframe
-    
     
     if is_test:
         data_frame = pd.read_csv(csv_path)
@@ -57,7 +56,8 @@ def get_features(csv_path,is_train=False,scaler=None,is_test=False):
     if is_train:
         scaler.__call__(x,is_train)
 
-    x_norm = ((x- scaler.minimum)/(scaler.maximum - scaler.minimum + 0.00000000000000000001)) #normalize
+    x_norm = ((x- scaler.mean)/(scaler.std_dev + 0.000000000000000000001)) #normalize
+    x_norm = np.insert(x_norm,0,1,axis=1) ### for adding bias 
     return x_norm
 def get_targets(csv_path):
     '''
@@ -71,7 +71,6 @@ def get_targets(csv_path):
     columns = data_frame.columns.tolist() # get the columns
     cols_to_use = columns[len(columns)-1:]
     df = pd.read_csv(csv_path, usecols=cols_to_use)
-    # print(df.info())
     x = df.values #returns a numpy array
     return x
 
@@ -93,7 +92,9 @@ def analytical_solution(feature_matrix, targets, C=0.0):
     x = feature_matrix
     y = targets
     xt = x.T
-    w = np.linalg.solve(xt.dot(x) + C ,xt.dot(y))
+    I = C*np.identity(60)  #identity matrix 
+    w = np.linalg.inv(xt.dot(x)+I).dot(xt.dot(y))
+    # w = np.linalg.solve(xt.dot(x) + C ,xt.dot(y))
     return w
 
 def get_predictions(feature_matrix, weights):
@@ -109,7 +110,6 @@ def get_predictions(feature_matrix, weights):
     weights: numpy array of shape n x 1
     '''
     return feature_matrix.dot(weights)
-    # raise NotImplementedError
 
 def mse_loss(predications, targets):
     '''
@@ -138,7 +138,8 @@ def l2_regularizer(weights):
     Arguments
     weights: numpy array of shape n x 1
     '''
-    raise NotImplementedError
+    return np.linalg.norm(weights)
+    # raise NotImplementedError
 
 def loss_fn(feature_matrix, weights, targets, C=0.0):
     '''
@@ -155,7 +156,7 @@ def loss_fn(feature_matrix, weights, targets, C=0.0):
     return value: float (scalar)
     '''
     mse = mse_loss(feature_matrix,targets)
-    return mse + C*np.linalg.norm(weights)
+    return mse + C*l2_regularizer(weights)
     # raise NotImplementedError
 
 def compute_gradients(feature_matrix, weights, targets, C=0.0):
@@ -175,13 +176,17 @@ def compute_gradients(feature_matrix, weights, targets, C=0.0):
     # print(feature_matrix)
     # print(weights)
     # print(targets)
-    loss = (feature_matrix.dot(weights)-targets)
+    loss = (feature_matrix.dot(weights)-targets) 
+
     # print(loss)
 
     # cost = np.sum(loss**2)/2*32  + 
     # print(cost)
-    #loss_fn(feature_matrix,weights,targets,C)
-    gradient = feature_matrix.T.dot(loss)
+    # loss = loss_fn(feature_matrix,weights,targets,C)
+    # print(feature_matrix.shape[0])
+    gradient = (2/feature_matrix.shape[0])*(feature_matrix.T.dot(loss)) + 2.0*C*np.sum(weights)
+
+    # return np.divide(gradient,feature_matrix.shape[0])
     return gradient
     # raise NotImplementedError
 
@@ -277,10 +282,13 @@ def do_gradient_descent(train_feature_matrix,
         
         #update weights
         weights = update_weights(weights, gradients, lr)
-
+        
         if step%eval_steps == 0:
             dev_loss = mse_loss(dev_feature_matrix.dot(weights), dev_targets)
             train_loss = mse_loss(train_feature_matrix.dot(weights), train_targets)
+            if(abs(train_loss - analytical_train_loss) < 0.0009):
+                print('Stopping early')
+                return weights
             print("step {} \t dev loss: {} \t train loss: {}".format(step,dev_loss,train_loss))
 
         '''
@@ -310,14 +318,12 @@ if __name__ == '__main__':
     train_features, train_targets = get_features('data/train.csv',True,scaler), get_targets('data/train.csv')
     dev_features, dev_targets = get_features('data/dev.csv',False,scaler), get_targets('data/dev.csv')
     
-    a_solution = analytical_solution(train_features, train_targets, C=1e-8)
-    
-    
+    a_solution = analytical_solution(train_features, train_targets, C=0.01)
     
     print('evaluating analytical_solution...')
-#    dev_loss = 0
     dev_loss=do_evaluation(dev_features, dev_targets, a_solution)
     train_loss=do_evaluation(train_features, train_targets, a_solution)
+    analytical_train_loss = train_loss
     print('analytical_solution \t train loss: {}, dev_loss: {} '.format(train_loss, dev_loss))
 
     print('training LR using gradient descent...')
@@ -325,11 +331,11 @@ if __name__ == '__main__':
                         train_targets, 
                         dev_features,
                         dev_targets,
-                        lr=0.001,
+                        lr=0.0002,
                         C=1e-7,
-                        batch_size=128,
-                        max_steps=10000000,
-                        eval_steps=100000)
+                        batch_size=64,
+                        max_steps=6000000,
+                        eval_steps=10000)
 
     print('evaluating iterative_solution...')
     test_features = get_features('data/test.csv',False,scaler,True)
