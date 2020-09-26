@@ -92,7 +92,7 @@ def analytical_solution(feature_matrix, targets, C=0.0):
     x = feature_matrix
     y = targets
     xt = x.T
-    I = C*np.identity(60)  #identity matrix 
+    I = C*np.identity(x.shape[1])  #identity matrix 
     w = np.linalg.inv(xt.dot(x)+I).dot(xt.dot(y))
     # w = np.linalg.solve(xt.dot(x) + C ,xt.dot(y))
     return w
