@@ -7,7 +7,6 @@ from matplotlib import pyplot as plt
 np.random.seed(42)
 
 
-analytical_train_loss = 0
 class Scaler():
     # hint: https://machinelearningmastery.com/standardscaler-and-minmaxscaler-transforms-in-python/
     def __init__(self):
@@ -92,8 +91,8 @@ def analytical_solution(feature_matrix, targets, C=0.0):
     x = feature_matrix
     y = targets
     xt = x.T
-    I = C*np.identity(x.shape[1])  #identity matrix 
-    w = np.linalg.inv(xt.dot(x)+I).dot(xt.dot(y))
+    I = np.identity(x.shape[1])  #identity matrix 
+    w = np.linalg.inv(xt.dot(x)+C*I).dot(xt.dot(y))
     # w = np.linalg.solve(xt.dot(x) + C ,xt.dot(y))
     return w
 
@@ -244,11 +243,18 @@ def update_weights(weights, gradients, lr):
     return weights
     # raise NotImplementedError
 
-def early_stopping(arg_1=None, arg_2=None, arg_3=None, arg_n=None):
-    # allowed to modify argument list as per your need
-    # return True or False
-    raise NotImplementedError
-    
+# From -> https://stackoverflow.com/questions/279561/what-is-the-python-equivalent-of-static-variables-inside-a-function
+def early_stopping(train_loss):
+    last_k_losses.append(train_loss)
+    if len(last_k_losses) < k:
+        return False
+    last_k_losses.pop(0)
+    return (max(last_k_losses) - min(last_k_losses)) < min_diff
+
+k = 10 #for early stopping # check last k error values
+last_k_losses = []
+min_diff = 0.000009
+
 
 def do_gradient_descent(train_feature_matrix,  
                         train_targets, 
@@ -286,7 +292,7 @@ def do_gradient_descent(train_feature_matrix,
         if step%eval_steps == 0:
             dev_loss = mse_loss(dev_feature_matrix.dot(weights), dev_targets)
             train_loss = mse_loss(train_feature_matrix.dot(weights), train_targets)
-            if(abs(train_loss - analytical_train_loss) < 0.0009):
+            if(early_stopping(train_loss)):
                 print('Stopping early')
                 return weights
             print("step {} \t dev loss: {} \t train loss: {}".format(step,dev_loss,train_loss))
@@ -318,12 +324,11 @@ if __name__ == '__main__':
     train_features, train_targets = get_features('data/train.csv',True,scaler), get_targets('data/train.csv')
     dev_features, dev_targets = get_features('data/dev.csv',False,scaler), get_targets('data/dev.csv')
     
-    a_solution = analytical_solution(train_features, train_targets, C=0.01)
+    a_solution = analytical_solution(train_features, train_targets, C=1e-7)
     
     print('evaluating analytical_solution...')
     dev_loss=do_evaluation(dev_features, dev_targets, a_solution)
     train_loss=do_evaluation(train_features, train_targets, a_solution)
-    analytical_train_loss = train_loss
     print('analytical_solution \t train loss: {}, dev_loss: {} '.format(train_loss, dev_loss))
 
     print('training LR using gradient descent...')
